@@ -5,12 +5,13 @@ import java.awt.event.KeyListener;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 import java.util.logging.Level;
@@ -31,13 +32,20 @@ import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.TransformerException;
+import org.xml.sax.SAXException;
 
+
+/**
+ * Релизует интерфейс, а также обрабатывает логику которая 
+ * имеет непосредственное отношение к интерфейсу
+ * @author GaraZ
+ */
 public class ReportJFrame extends javax.swing.JFrame {
     private JFileChooser gFileChoose = new JFileChooser();
     private Reports gReports;
     private final static Logger LOGGER = Logger.getLogger(Reports.class.getName());
     
-    private TreeMap<String,HashMap<String,String>> gProfileMap;
+    private Map<String,Map<String,String>> gProfileMap;
     
     private class ProfileSelList implements ListSelectionListener{
 
@@ -86,7 +94,16 @@ public class ReportJFrame extends javax.swing.JFrame {
     }
     
     void initReportJFrame(){
-        gProfileMap = gReports.getProfiles();
+        try{
+            gProfileMap = gReports.loadProfiles();
+        }catch(ParserConfigurationException | SAXException | NoSuchAlgorithmException | 
+                NoSuchPaddingException | IOException | InvalidKeyException | 
+                IllegalBlockSizeException | BadPaddingException e){
+            gProfileMap = new TreeMap<String,Map<String,String>>();
+            LOGGER.log(Level.WARNING,"Ошибка загрузки настроек",e);
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка загрузки настроек", 
+                    JOptionPane.ERROR_MESSAGE);
+        }
         initProfiles();
         selProfile(0);
         showParameters(jListProf);    
@@ -376,7 +393,9 @@ public class ReportJFrame extends javax.swing.JFrame {
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
-    // диалог выбора файла
+    /** Отображение диалога для выбора файла
+    * @return Выбранный файл
+    */
     private File chooseFile(){
         File file = null;
         int openRes = gFileChoose.showOpenDialog(this);        
@@ -387,7 +406,10 @@ public class ReportJFrame extends javax.swing.JFrame {
         return file;
     }
     
-    // переименовать выбранный файл
+    /**
+     * Переименовать выбранный файл
+     * @param aTree Дерево с файлами
+     */
     private void renameSelFile(javax.swing.JTree aTree){
         DefaultMutableTreeNode selNode = 
             (DefaultMutableTreeNode) aTree.getLastSelectedPathComponent();
@@ -402,14 +424,10 @@ public class ReportJFrame extends javax.swing.JFrame {
             try{
                 String title;
                 String dir = gReports.getRootDir(); 
-                if(gReports.renameFile(dir+name,dir+newName) == 1){
-                    title = "Файл был успешно переименован";
-                }else{
-                    title = "Не удалось переименовать файл";
-                }
-                initFileReportList();
-                JOptionPane.showMessageDialog(this, title, "Сообщение", 
+                gReports.renameFile(dir+name,dir+newName);
+                JOptionPane.showMessageDialog(this, "Файл был успешно переименован", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE); 
+                initFileReportList();
             }catch(SQLException e){
                 LOGGER.log(Level.WARNING,"Ошибка переименования файла",e);
                 JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка переименования файла", 
@@ -418,7 +436,11 @@ public class ReportJFrame extends javax.swing.JFrame {
         }
     }
     
-    // сохранить выбранный файл
+    // 
+    /**
+     * Сохранить выбранный файл
+     * @param aTree Дерево с файлами
+     */
     private void saveSelFile(javax.swing.JTree aTree){
         DefaultMutableTreeNode selNode = 
             (DefaultMutableTreeNode) aTree.getLastSelectedPathComponent();
@@ -438,8 +460,10 @@ public class ReportJFrame extends javax.swing.JFrame {
                     int selection = JOptionPane.showConfirmDialog(this, "Файл с таким названием уже существует. Заменить?", "Осторожно", 
                         JOptionPane.OK_CANCEL_OPTION);
                     if(selection == JOptionPane.OK_OPTION){
-                        gReports.getFile(dirPath+fileName,newFile);
+                        gReports.CopyFileFromServer(dirPath+fileName,newFile).createNewFile();
                     }
+                }else{
+                     gReports.CopyFileFromServer(dirPath+fileName,newFile).createNewFile();
                 }
             }
         }catch(SQLException e){
@@ -458,7 +482,13 @@ public class ReportJFrame extends javax.swing.JFrame {
         
     }
     
-    //Строим простое дерево файлов в соответствии с переданным списком
+   
+    /**
+     * Строит модель дерева файлов в соответствии с переданным списком
+     * @param root Корневой елемент дерева
+     * @param fList Список файлов
+     * @return Модель дерева файлов
+     */
     private DefaultMutableTreeNode buildFileTree(DefaultMutableTreeNode root, java.util.List<File> fList) {
         if (!fList.isEmpty()){
             class TreeFile extends File{
@@ -483,9 +513,13 @@ public class ReportJFrame extends javax.swing.JFrame {
         return root;
     } 
     
-    // инициализируем список файлов и включаем некоторые элементы интерфейса
-    // aRoot - директория файлов на сервере
-    // aList - список файлов
+    /**
+     * Инициализация списка файлов и включение элементов интерфейса 
+     * необходимых для редактирования списка
+     * @param aTree Дерево файлов
+     * @param aRoot Путь к директории файлов 
+     * @param aList список файлов
+     */
     private void initTreeReports(javax.swing.JTree aTree, String aRoot, List<File> aList){
         jButtonDelFile.setEnabled(true);
         jButtonGetFile.setEnabled(true);
@@ -497,7 +531,11 @@ public class ReportJFrame extends javax.swing.JFrame {
         aTree.setModel(lTreeModel);            
     }
     
-    // деинициализируем список файлов и отключаем некоторые элементы интерфейса
+    /**
+     * Деинициализация списка файлов и выключение элементов интерфейса 
+     * необходимых для редактирования списка
+     * @param aTree Дерево файлов
+     */
     private void deinitTreeReports(javax.swing.JTree aTree){
         jButtonDelFile.setEnabled(false);
         jButtonGetFile.setEnabled(false);
@@ -508,13 +546,15 @@ public class ReportJFrame extends javax.swing.JFrame {
         aTree.removeAll();            
     }
 
-    // загружаем выбранный файл на сервер
+    /**
+     * Загрузка выбранного файла на сервер
+     */
     private void loadFile(){
         File file = chooseFile();
         if (file == null) return;
         String newName = gReports.getRootDir()+file.getName();
         try{
-            if (gReports.checkFile(newName) == 1){
+            if (gReports.checkFile(newName)){
                 int selection = JOptionPane.showConfirmDialog(this, "Файл с таким названием уже существует. Заменить?", "Осторожно", 
                         JOptionPane.OK_CANCEL_OPTION);
                 if(selection == JOptionPane.OK_OPTION){
@@ -529,8 +569,6 @@ public class ReportJFrame extends javax.swing.JFrame {
                 JOptionPane.showMessageDialog(this, "Файл был успешно сохранен", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE);                
             }
-              
-            
         }catch(SQLException e){
             LOGGER.log(Level.WARNING,"Ошибка передачи файла на сервер",e);
             JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка передачи файла на сервер", 
@@ -541,8 +579,10 @@ public class ReportJFrame extends javax.swing.JFrame {
                     JOptionPane.ERROR_MESSAGE);
         }
     }
-    
-    // удаляем выбранный файл на сервере
+
+    /**
+     * Удаление выбранного файла на сервере
+     */
     private void removeFile(javax.swing.JTree aTree){ 
         DefaultMutableTreeNode selNode = 
             (DefaultMutableTreeNode) aTree.getLastSelectedPathComponent();
@@ -552,31 +592,30 @@ public class ReportJFrame extends javax.swing.JFrame {
             int selection = JOptionPane.showConfirmDialog(this, "Вы уверены что хотите удалить выбранный файл?", "Осторожно", 
                     JOptionPane.OK_CANCEL_OPTION);
             if(selection == JOptionPane.OK_OPTION){
-                String title;
-                if(gReports.removeFile(gReports.getRootDir()+fileName) == 1){
-                    title = "Файл был успешно удален";
-                }else{
-                    title = "Не удалось удалить файл";
-                }
-                initFileReportList();
-                JOptionPane.showMessageDialog(this, title, "Сообщение", 
+                gReports.removeFile(gReports.getRootDir()+fileName);
+                JOptionPane.showMessageDialog(this, "Файл был успешно удален", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE); 
+                initFileReportList();
             }
         }catch(SQLException e){
             LOGGER.log(Level.WARNING,"Ошибка удаления файла",e);
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка удаления файла", 
+            JOptionPane.showMessageDialog(this, "Файл удалить не удалось ", "Ошибка удаления файла", 
                     JOptionPane.ERROR_MESSAGE);
         }
     }    
     
-    // перерисовываем список файлов
+    /**
+     * Перерисовка списка файлов
+     */    
     private void initFileReportList() throws SQLException{
         gReports.initRootDir();
         initTreeReports(jTreeFiles, gReports.getRootDir(), gReports.getReportList());
         jToggleButtonConnect.setText("Отключиться...");
     }
     
-    // инициализируем настройки подключения
+    /**
+     * Инициализация настроек подключения
+     */  
     private void initProfiles(){
         DefaultListModel model = new DefaultListModel();
         for(String key:gProfileMap.keySet()){
@@ -605,7 +644,10 @@ public class ReportJFrame extends javax.swing.JFrame {
         }
     }
     
-    // добавить профиль с настройками
+    /**
+     * Добавление профиля с настройками
+     * @param aJTextField Имя профиля
+     */ 
     private void addProfile(JTextField aJTextField){
         if(!aJTextField.getText().trim().equals("")){
             gProfileMap.put(aJTextField.getText(), new HashMap());
@@ -614,7 +656,10 @@ public class ReportJFrame extends javax.swing.JFrame {
         }
     }
     
-    // удалить профиль с настройками
+    /**
+     * Удаление выбрынного профиля с настройками
+     * @param aJList Список профилей
+     */ 
     private void delProfile(JList aJList){
         String prof = aJList.getSelectedValue().toString();
         int index = aJList.getSelectedIndex();
@@ -624,7 +669,10 @@ public class ReportJFrame extends javax.swing.JFrame {
         selProfile(index-1);
     }
     
-    // отобразить настройки профиля
+    /**
+     * Отображение настроек выбранного профиля
+     * @param aJList Список профилей
+     */ 
     private void showParameters(JList aJList){
         jTextFieldSrvName.setText(null);
         jTextFieldPort.setText(null);
@@ -646,11 +694,14 @@ public class ReportJFrame extends javax.swing.JFrame {
         
     }
     
-    // сохранить параметры подключения
+    /**
+     * Сохранения настроек выбранного профиля
+     * @param aJList Список профилей
+     */ 
     private void setParameters(JList aJList){
         if(aJList.getModel().getSize() > 0){
             String selProf = String.valueOf(aJList.getSelectedValue());
-            HashMap<String,String> map = new HashMap<String,String>();
+            Map<String,String> map = new HashMap<String,String>();
             map.put("srvname", jTextFieldSrvName.getText());
             map.put("port", jTextFieldPort.getText());
             map.put("db", jTextFieldDB.getText());
@@ -660,8 +711,11 @@ public class ReportJFrame extends javax.swing.JFrame {
         }
 
     }
-    
-    // подключаемся к серверу
+
+    /**
+     * Подключение/отключение к серверу
+     * @param aJToggleButton Источник события
+     */ 
     private void startCon(JToggleButton aJToggleButton){
         if(aJToggleButton.isSelected()){
             try{
@@ -689,12 +743,13 @@ public class ReportJFrame extends javax.swing.JFrame {
     private void saveParameters(){
         setParameters(jListProf);
         try{
-            gReports.saveProfiles(gProfileMap);
-        } catch (ParserConfigurationException | TransformerException | NoSuchAlgorithmException | 
-                NoSuchPaddingException | InvalidKeySpecException | InvalidKeyException |
+            gReports.saveProfiles(gProfileMap);           
+        } catch (ParserConfigurationException | TransformerException | UnsupportedEncodingException | 
+                NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | 
                 IllegalBlockSizeException | BadPaddingException e) {
-            LOGGER.log(Level.INFO, e.getMessage(), e);
-            JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка!", JOptionPane.ERROR_MESSAGE);
+            LOGGER.log(Level.WARNING,"Ошибка сохранения настроек",e);
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка сохранения настроек", 
+                    JOptionPane.ERROR_MESSAGE);
         }
     } 
     

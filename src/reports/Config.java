@@ -1,20 +1,15 @@
 package reports;
     
 import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.security.*;
-import java.security.spec.InvalidKeySpecException;
 import javax.crypto.*;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.crypto.spec.SecretKeySpec;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -30,9 +25,12 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 
+/**
+ * Класс для работы с конфигурациионным файлом. 
+ * @author GaraZ
+ */
 public class Config {
     static final String FILE_NAME = "config.xml";
-    private final static Logger LOGGER = Logger.getLogger(Reports.class.getName());
 
     private static class Crypt {
         private static final byte[] KEY_DATA = new byte[]{1,2,3,4,5,6,7,8,1,2,3,4,5,6,7,8}; 
@@ -44,78 +42,52 @@ public class Config {
             return keySpec;
         }
 
-        private static void crypt(InputStream in, OutputStream out, Cipher cipher) throws IOException, ShortBufferException, IllegalBlockSizeException, BadPaddingException{
-            int blockSize = cipher.getBlockSize();
-            int outputSize = cipher.getOutputSize(blockSize);
-            byte[] inBytes = new byte[blockSize];
-            byte[] outBytes = new byte[outputSize];
-            int inLength = 0;
-            boolean more = true;
-            while(more){
-                inLength = in.read(inBytes);
-                if(inLength == blockSize){
-                    int outLength =cipher.update(inBytes, 0,blockSize,outBytes);
-                    out.write(outBytes,0,outLength);
-                }
-                else more = false;
-            }
-            if(inLength > 0){          
-                outBytes =cipher.doFinal(inBytes,0,inLength);
-            }
-            else{
-                outBytes =cipher.doFinal();
-            }
-            out.write(outBytes);
-        }
-
-        private static byte[] crypter(byte[] aBytes, int aMode, Key aKey) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, IOException, ShortBufferException, IllegalBlockSizeException, BadPaddingException{
-            ByteArrayOutputStream out;
-            byte[] bytes;
-            try (InputStream in = new ByteArrayInputStream(aBytes)) {
-                out = new ByteArrayOutputStream();
-                Cipher cipher = Cipher.getInstance(ALGORITHM);
-                cipher.init(aMode, aKey);
-                crypt(in,out,cipher);
-                bytes = out.toByteArray();
-            }
-            out.close();
+        private static byte[] crypter(byte[] aBytes, int aMode, Key aKey) throws NoSuchAlgorithmException, 
+                NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            cipher.init(aMode, aKey);
+            byte[] bytes = cipher.doFinal(aBytes);
             return bytes;
         }
         
-        // шифрование строки aString
-        static String encrypt(String aString){
-            String result = new String();
+        /**
+        * Шифрование
+        * @return - строка которую необходимо зашифровать
+        * @throws UnsupportedEncodingException
+        * @throws NoSuchAlgorithmException
+        * @throws NoSuchPaddingException
+        * @throws InvalidKeyException
+        * @throws IllegalBlockSizeException
+        * @throws BadPaddingException
+        */
+        static String encrypt(String aString) throws UnsupportedEncodingException, 
+                NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, 
+                IllegalBlockSizeException, BadPaddingException{
             if(aString == null || aString.trim().isEmpty()) 
-                return result;
-            try {
-                byte[] bytes = aString.getBytes(ENCODING);
-                bytes = crypter(bytes, Cipher.ENCRYPT_MODE, getKey());
-                return Base64.encode(bytes);
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException | 
-                    InvalidKeyException | IOException | ShortBufferException |
-                    IllegalBlockSizeException | BadPaddingException e) {
-                LOGGER.log(Level.SEVERE, null, e);
-            }
-            return result;
+                return new String();
+            byte[] bytes = aString.getBytes(ENCODING);
+            bytes = crypter(bytes, Cipher.ENCRYPT_MODE, getKey());
+            return Base64.encode(bytes);
         }
         
-        // дешифровка строки aString
-        static String dencrypt(String aString){
-            String result = new String();
+        /**
+        * Расшифрование
+        * @return - строка которую необходимо расшифровать
+        * @throws NoSuchAlgorithmException
+        * @throws NoSuchPaddingException
+        * @throws InvalidKeyException
+        * @throws IllegalBlockSizeException
+        * @throws BadPaddingException
+        * @throws UnsupportedEncodingException
+        */
+        static String dencrypt(String aString) throws NoSuchAlgorithmException, 
+                NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, 
+                BadPaddingException, UnsupportedEncodingException{
             if(aString == null || aString.trim().isEmpty()) 
-                return result;
-            try {
-                byte[] bytes = Base64.decode(aString);
-                if (bytes != null){
-                    bytes = crypter(bytes, Cipher.DECRYPT_MODE, getKey());
-                    return new String(bytes,ENCODING);
-                }
-            } catch (NoSuchAlgorithmException | NoSuchPaddingException | 
-                    InvalidKeyException | IOException | ShortBufferException |
-                    IllegalBlockSizeException | BadPaddingException ex) {
-                LOGGER.log(Level.SEVERE, null, ex);
-            }
-            return result;
+                return new String();
+            byte[] bytes = Base64.decode(aString);
+            bytes = crypter(bytes, Cipher.DECRYPT_MODE, getKey());
+            return new String(bytes,ENCODING);
         }
     }
     
@@ -133,19 +105,32 @@ public class Config {
         transformer.transform(source, result);
     }
     
-    // сохраняем настройки подключения
-    void setProfiles(TreeMap<String,HashMap<String,String>> aMap) throws ParserConfigurationException, TransformerException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeySpecException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    /**
+     * Сохраняет настройки подключения в xml файл
+     * @param aMap - коллекция с настройками
+     * @throws ParserConfigurationException
+     * @throws TransformerException
+     * @throws UnsupportedEncodingException
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws InvalidKeyException
+     * @throws IllegalBlockSizeException
+     * @throws BadPaddingException
+     */
+    public void setProfiles(Map<String,Map<String,String>> aMap) throws ParserConfigurationException,
+            TransformerException, UnsupportedEncodingException, NoSuchAlgorithmException, 
+            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
         Document doc = getDocBuilder().newDocument();
         Element rootElement = doc.createElement("root");
         doc.appendChild(rootElement);
-        for(Entry<String, HashMap<String, String>> gEntry :aMap.entrySet()){
-            Element prof = doc.createElement(String.valueOf(gEntry.getKey()));
+        for(Entry<String, Map<String, String>> gEntry :aMap.entrySet()){
+            Element prof = doc.createElement(gEntry.getKey());
             for(Entry<String,String> lEntry :gEntry.getValue().entrySet()){
-                Element param = doc.createElement(String.valueOf(lEntry.getKey()));
+                Element param = doc.createElement(lEntry.getKey());
                 if(lEntry.getKey().equals("pass")){
                     param.setAttribute("value", Crypt.encrypt(lEntry.getValue()));
                 }else{
-                    param.setAttribute("value", String.valueOf(lEntry.getValue()));
+                    param.setAttribute("value", lEntry.getValue());
                 }
                 prof.appendChild(param);
             }
@@ -154,9 +139,22 @@ public class Config {
         TransformFactory(doc);
     }
 
-    // получаем настройки подключения
-    TreeMap<String,HashMap<String,String>> getProfiles() throws SAXException, ParserConfigurationException, IOException{
-        TreeMap<String,HashMap<String,String>> map = new TreeMap<String,HashMap<String,String>>();
+    /**
+     * Парсит настройки подключения из xml файла
+     * @return aMap - коллекция с настройками
+     * @throws ParserConfigurationException
+     * @throws SAXException
+     * @throws NoSuchAlgorithmException
+     * @throws NoSuchPaddingException
+     * @throws IOException
+     * @throws InvalidKeyException
+     * @throws IllegalBlockSizeException
+     * @throws BadPaddingException
+     */
+    public Map<String,Map<String,String>> getProfiles() throws ParserConfigurationException, 
+            SAXException, NoSuchAlgorithmException, NoSuchPaddingException, IOException, 
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+        Map<String,Map<String,String>> map = new TreeMap<String,Map<String,String>>();
         Document doc;
         doc = null;
         File file = new File(FILE_NAME);
@@ -170,7 +168,7 @@ public class Config {
             if(nodeList.item(i) instanceof Element){
                 NodeList lNodeList = nodeList.item(i).getChildNodes();
                 int lSize = lNodeList.getLength();
-                HashMap<String,String> lMap = new HashMap<String,String>();
+                Map<String,String> lMap = new HashMap<String,String>();
                 for(int j = 0; j < lSize; j++){
                     if(lNodeList.item(j) instanceof Element){
                         if(lNodeList.item(j).getNodeName().equals("pass")){
