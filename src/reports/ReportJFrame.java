@@ -410,7 +410,7 @@ public class ReportJFrame extends javax.swing.JFrame {
      * Переименовать выбранный файл
      * @param aTree Дерево с файлами
      */
-    private void renameSelFile(javax.swing.JTree aTree){
+    private void renameSelFile(javax.swing.JTree aTree) {
         DefaultMutableTreeNode selNode = 
             (DefaultMutableTreeNode) aTree.getLastSelectedPathComponent();
         if (selNode == null) return;
@@ -422,13 +422,12 @@ public class ReportJFrame extends javax.swing.JFrame {
         }
         if(newName != null && !newName.equals(name)){
             try{
-                String title;
                 String dir = gReports.getRootDir(); 
-                gReports.renameFile(dir+name,dir+newName);
+                gReports.renameFileRemote(dir+name,dir+newName);
                 JOptionPane.showMessageDialog(this, "Файл был успешно переименован", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE); 
                 initFileReportList();
-            }catch(SQLException e){
+            }catch(IOException | ClassNotFoundException | SQLException e){
                 LOGGER.log(Level.WARNING,"Ошибка переименования файла",e);
                 JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка переименования файла", 
                     JOptionPane.ERROR_MESSAGE);
@@ -460,10 +459,10 @@ public class ReportJFrame extends javax.swing.JFrame {
                     int selection = JOptionPane.showConfirmDialog(this, "Файл с таким названием уже существует. Заменить?", "Осторожно", 
                         JOptionPane.OK_CANCEL_OPTION);
                     if(selection == JOptionPane.OK_OPTION){
-                        gReports.CopyFileFromServer(dirPath+fileName,newFile).createNewFile();
+                        gReports.CopyFileToLocal(dirPath+fileName,newFile).createNewFile();
                     }
                 }else{
-                     gReports.CopyFileFromServer(dirPath+fileName,newFile).createNewFile();
+                     gReports.CopyFileToLocal(dirPath+fileName,newFile).createNewFile();
                 }
             }
         }catch(SQLException e){
@@ -489,7 +488,7 @@ public class ReportJFrame extends javax.swing.JFrame {
      * @param fList Список файлов
      * @return Модель дерева файлов
      */
-    private DefaultMutableTreeNode buildFileTree(DefaultMutableTreeNode root, java.util.List<File> fList) {
+    private DefaultMutableTreeNode buildFileTree(DefaultMutableTreeNode root, java.util.List<String> fList) {
         if (!fList.isEmpty()){
             class TreeFile extends File{
                 public TreeFile(String path){
@@ -501,8 +500,8 @@ public class ReportJFrame extends javax.swing.JFrame {
             }
             try{     
                 DefaultMutableTreeNode treeNodeF;
-                for(File file: fList){
-                    treeNodeF = new DefaultMutableTreeNode(new TreeFile(file.getPath()));
+                for(String string: fList){
+                    treeNodeF = new DefaultMutableTreeNode(new TreeFile(string/*file.getPath()*/));
                     root.add(treeNodeF);
                 }
             }catch(Exception e){
@@ -520,7 +519,7 @@ public class ReportJFrame extends javax.swing.JFrame {
      * @param aRoot Путь к директории файлов 
      * @param aList список файлов
      */
-    private void initTreeReports(javax.swing.JTree aTree, String aRoot, List<File> aList){
+    private void initTreeReports(javax.swing.JTree aTree, String aRoot, List<String> aList){
         jButtonDelFile.setEnabled(true);
         jButtonGetFile.setEnabled(true);
         jButtonPutFile.setEnabled(true);
@@ -554,22 +553,22 @@ public class ReportJFrame extends javax.swing.JFrame {
         if (file == null) return;
         String newName = gReports.getRootDir()+file.getName();
         try{
-            if (gReports.checkFile(newName)){
+            if (gReports.checkFileRemote(newName)){
                 int selection = JOptionPane.showConfirmDialog(this, "Файл с таким названием уже существует. Заменить?", "Осторожно", 
                         JOptionPane.OK_CANCEL_OPTION);
                 if(selection == JOptionPane.OK_OPTION){
-                    gReports.putFile(file, newName);
+                    gReports.putFileToRemote(file, newName);
                     initFileReportList(); 
                     JOptionPane.showMessageDialog(this, "Файл был успешно сохранен", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE);
                 }
             }else{
-                gReports.putFile(file, newName);
+                gReports.putFileToRemote(file, newName);
                 initFileReportList(); 
                 JOptionPane.showMessageDialog(this, "Файл был успешно сохранен", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE);                
             }
-        }catch(SQLException e){
+        }catch(ClassNotFoundException |SQLException e){
             LOGGER.log(Level.WARNING,"Ошибка передачи файла на сервер",e);
             JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка передачи файла на сервер", 
                     JOptionPane.ERROR_MESSAGE);
@@ -592,12 +591,12 @@ public class ReportJFrame extends javax.swing.JFrame {
             int selection = JOptionPane.showConfirmDialog(this, "Вы уверены что хотите удалить выбранный файл?", "Осторожно", 
                     JOptionPane.OK_CANCEL_OPTION);
             if(selection == JOptionPane.OK_OPTION){
-                gReports.removeFile(gReports.getRootDir()+fileName);
+                gReports.removeFileRemote(gReports.getRootDir()+fileName);
                 JOptionPane.showMessageDialog(this, "Файл был успешно удален", "Сообщение", 
                         JOptionPane.INFORMATION_MESSAGE); 
                 initFileReportList();
             }
-        }catch(SQLException e){
+        }catch(IOException | ClassNotFoundException | SQLException e){
             LOGGER.log(Level.WARNING,"Ошибка удаления файла",e);
             JOptionPane.showMessageDialog(this, "Файл удалить не удалось ", "Ошибка удаления файла", 
                     JOptionPane.ERROR_MESSAGE);
@@ -607,9 +606,9 @@ public class ReportJFrame extends javax.swing.JFrame {
     /**
      * Перерисовка списка файлов
      */    
-    private void initFileReportList() throws SQLException{
+    private void initFileReportList() throws SQLException, IOException, ClassNotFoundException{
         gReports.initRootDir();
-        initTreeReports(jTreeFiles, gReports.getRootDir(), gReports.getReportList());
+        initTreeReports(jTreeFiles, gReports.getRootDir(), gReports.getFileListRemote());
         jToggleButtonConnect.setText("Отключиться...");
     }
     
@@ -716,7 +715,7 @@ public class ReportJFrame extends javax.swing.JFrame {
      * Подключение/отключение к серверу
      * @param aJToggleButton Источник события
      */ 
-    private void startCon(JToggleButton aJToggleButton){
+    private void startCon(JToggleButton aJToggleButton) {
         if(aJToggleButton.isSelected()){
             try{
                 gReports.closeCon();
@@ -728,7 +727,7 @@ public class ReportJFrame extends javax.swing.JFrame {
                     jPasswordFieldPass.getText()                
                 );
                 initFileReportList();
-            }catch(SQLException e){
+            }catch(ClassNotFoundException | SQLException | IOException e){
                 LOGGER.log(Level.INFO, e.getMessage(), e);
                 aJToggleButton.setSelected(false);
                 JOptionPane.showMessageDialog(this, e.getMessage(), "Ошибка!", JOptionPane.ERROR_MESSAGE);

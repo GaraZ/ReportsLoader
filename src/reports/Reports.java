@@ -7,7 +7,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.ObjectInputStream;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -19,6 +19,8 @@ import java.sql.Statement;
 import java.sql.Blob;
 import java.sql.PreparedStatement;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -47,7 +49,7 @@ public class Reports {
      * Инициализирует файл лога
      * @throws IOException
      */
-    public void initLogFile() throws IOException{
+    void initLogFile() throws IOException{
         FileHandler handler = 
                 new FileHandler("."+System.getProperty("file.separator")+"report.log",100000,1,true);
         LOGGER.addHandler(handler);
@@ -65,7 +67,7 @@ public class Reports {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    public void saveProfiles(Map<String,Map<String,String>> aProfileMap) throws ParserConfigurationException, 
+    void saveProfiles(Map<String,Map<String,String>> aProfileMap) throws ParserConfigurationException, 
             TransformerException, UnsupportedEncodingException, NoSuchAlgorithmException, 
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
         gConfig.setProfiles(aProfileMap);
@@ -99,7 +101,7 @@ public class Reports {
      * @param aPassword - пароль
      * @throws SQLException
      */
-    public void startCon(String aServerName, String aPort, String aDatabase, String aUsername, String aPassword) throws SQLException{
+    void startCon(String aServerName, String aPort, String aDatabase, String aUsername, String aPassword) throws SQLException{
         gCon = DriverManager.getConnection
                 ("jdbc:oracle:thin:@//" + aServerName+":" + aPort + "/" + aDatabase, aUsername, aPassword); 
     }
@@ -107,7 +109,7 @@ public class Reports {
     /**
      * Завершить соединение с бд
      */
-    public void closeCon(){
+    void closeCon(){
         if(gCon != null){
             try{
                 gCon.close();
@@ -120,7 +122,7 @@ public class Reports {
     /**
      * @return Путь к директорри на сервере в которой находятся отчеты
      */
-    public String getRootDir(){
+    String getRootDir(){
         return gRootDir;
     }
     
@@ -131,21 +133,12 @@ public class Reports {
         }
    }
     
- /*   private synchronized void copyStream(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[1024];
-        int b = 0;
-        while ((b = in.read(buffer)) != -1) {
-            out.write(buffer,0,b);
-        }
-        out.flush();
-    }*/
-    
     /**
      * Запрашивает  сервера путь к директорри на сервере в которой находятся отчеты
      * @return Путь к директорри на сервере в которой находятся отчеты
      * @throws SQLException
      */
-    public String initRootDir() throws SQLException{
+    String initRootDir() throws SQLException{
         gRootDir = new String();
         try(Statement stmt = gCon.createStatement()) {
             ResultSet rset = stmt.executeQuery("select pac_load_reports.getRootDir from dual");
@@ -162,20 +155,20 @@ public class Reports {
      * @return true - файл существует; false - файл не существует
      * @throws SQLException
      */
-    public boolean checkFile(String aPath) throws SQLException{
-        int status = 1;
+    boolean checkFileRemote(String aPath) throws SQLException{
+        String status = null;
         String QUERY = "select pac_load_reports.checkFile(?) from dual";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aPath);
             ResultSet rset = pstmt.executeQuery();
             while (rset.next()){
-                status = rset.getInt(1);
+                status = rset.getString(1);
             }
         }
-        if(status ==1){
-            return true;
-        } else{
+        if(status ==null){
             return false;
+        } else{
+            return true;
         } 
     }
     
@@ -184,7 +177,7 @@ public class Reports {
      * @param aPath Полный путь к файлу на сервере
      * @throws SQLException
      */
-    public void removeFile(String aPath) throws SQLException{
+    void removeFileRemote(String aPath) throws SQLException{
         String QUERY = "begin pac_load_reports.removeFile(?); end;";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aPath);
@@ -198,7 +191,7 @@ public class Reports {
      * @param aNewName Новый путь к файлу
      * @throws SQLException
      */
-    public void renameFile(String aName, String aNewName) throws SQLException{
+    void renameFileRemote(String aName, String aNewName) throws SQLException{
         String QUERY = "begin pac_load_reports.renameFile(?,?); end;";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aName);
@@ -211,30 +204,40 @@ public class Reports {
      * @return Список файлов на сервере
      * @throws SQLException
      */
-    public ArrayList<File> getReportList() throws SQLException{
-        ArrayList<File> list = new ArrayList<File>();
-        try(Statement stmt = gCon.createStatement()) {
-            ResultSet rset = stmt.executeQuery("select pac_load_reports.getRootDir from dual");
+    List<String> getFileListRemote() throws SQLException, IOException, ClassNotFoundException{
+        List<String> list = new ArrayList<String>();
+        String QUERY = "select pac_load_reports.getDirList(?,?) from dual";
+        Blob blob = null;
+        try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)){
+            pstmt.setString(1, gRootDir);
+            pstmt.setBlob(2, gCon.createBlob());
+            ResultSet rset = pstmt.executeQuery();
             while (rset.next()){
-                gRootDir = rset.getString(1);
+                blob = rset.getBlob(1);
+                break;
             }
-            rset = stmt.executeQuery("select * from table(pac_load_reports.getDirList) order by 1 asc");
-            while (rset.next()){
-                list.add(new File(rset.getString(1)));
+        }
+        if (blob != null){
+            try(ObjectInputStream bos = new ObjectInputStream(blob.getBinaryStream())){
+                list = (ArrayList<String>) bos.readObject();
+                Collections.sort(list);
             }
         }
         return list;
     }
     
-    private InputStream getBlobInputStream(String aFileName) throws SQLException{
-        Blob blob = null;
-        String QUERY = "select pac_load_reports.getFile(?) from dual";
+    
+    
+    private Blob getBlobRemote(String aFileName) throws SQLException{
+        Blob blob = gCon.createBlob();
+        String QUERY = "select pac_load_reports.getFile(?,?) from dual";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aFileName);
+            pstmt.setBlob(2, blob);
             ResultSet rset = pstmt.executeQuery();
             while (rset.next()){
                 blob = rset.getBlob(1);
-                return blob.getBinaryStream();
+                return blob;
             }
         }
         return null;
@@ -248,16 +251,16 @@ public class Reports {
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public File CopyFileFromServer(String aFileNameFrom,String aFileNameTo) throws SQLException, FileNotFoundException, IOException{
+    File CopyFileToLocal(String aFileNameFrom,String aFileNameTo) throws SQLException, FileNotFoundException, IOException{
         File file = new File(aFileNameTo);
-        try(BufferedInputStream in = new BufferedInputStream(getBlobInputStream(aFileNameFrom)); 
+        try(BufferedInputStream in = new BufferedInputStream(getBlobRemote(aFileNameFrom).getBinaryStream()); 
             BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(file))){
             bufferedCopy(in,out);
         }
         return file;
     }
-    
-    private Blob getBlob(File aFileNameFrom) throws SQLException, FileNotFoundException, IOException{
+
+    private Blob getBlobLocal(File aFileNameFrom) throws SQLException, FileNotFoundException, IOException{
         Blob blob = gCon.createBlob();        
         try(BufferedInputStream in = new BufferedInputStream(new FileInputStream(aFileNameFrom));
                 BufferedOutputStream out = new BufferedOutputStream(blob.setBinaryStream(0))){
@@ -265,8 +268,8 @@ public class Reports {
         }
         return blob;
     };
-    
-    private void putBlob(Blob aBlob, String aFileNameTo) throws SQLException{
+
+    private void putBlobToRemote(String aFileNameTo, Blob aBlob) throws SQLException{
         final String QUERY = "begin pac_load_reports.putFile(?,?); end;";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aFileNameTo);
@@ -274,10 +277,7 @@ public class Reports {
             pstmt.executeQuery();
         }
     }
-    
-    // копировать файл на лок машине в указанное место на сервере
-    // aFileNameFrom - путь к файлу на лок машине
-    // aFileNameTo - путь к файлу на сервере
+
     /**
      * Копирование файла на лок машине в указанное место на сервере
      * @param aFileNameFrom Путь к файлу на локальной машине
@@ -287,9 +287,9 @@ public class Reports {
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public void putFile(File aFileNameFrom,String aFileNameTo) throws SQLException, FileNotFoundException, IOException{
-        Blob blob = getBlob(aFileNameFrom);
-        putBlob( blob,aFileNameTo);
+    void putFileToRemote(File aFileNameFrom,String aFileNameTo) throws SQLException, FileNotFoundException, IOException{
+        Blob blob = getBlobLocal(aFileNameFrom);
+        putBlobToRemote(aFileNameTo, blob);
     }
     
     public static void main(String[] args) throws IOException{        

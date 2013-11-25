@@ -117,7 +117,7 @@ public class Config {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    public void setProfiles(Map<String,Map<String,String>> aMap) throws ParserConfigurationException,
+    void setProfiles(Map<String,Map<String,String>> aMap) throws ParserConfigurationException,
             TransformerException, UnsupportedEncodingException, NoSuchAlgorithmException, 
             NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
         Document doc = getDocBuilder().newDocument();
@@ -151,7 +151,7 @@ public class Config {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    public Map<String,Map<String,String>> getProfiles() throws ParserConfigurationException, 
+    Map<String,Map<String,String>> getProfiles() throws ParserConfigurationException, 
             SAXException, NoSuchAlgorithmException, NoSuchPaddingException, IOException, 
             InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
         Map<String,Map<String,String>> map = new TreeMap<String,Map<String,String>>();
