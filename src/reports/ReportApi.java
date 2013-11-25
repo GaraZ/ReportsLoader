@@ -12,7 +12,6 @@ import java.sql.*;
 import java.io.File;
 import java.util.ArrayList;
 import java.io.IOException;
-import oracle.sql.BLOB;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.ByteArrayOutputStream;
@@ -55,7 +54,7 @@ public class ReportApi {
      * @param aPath - полный путь к файлу на сервере
      * @return - если файл существует возвращает путь к файлу, иначк null 
      */
-    static String checkFile(String aPath){
+    public static String checkFile(String aPath){
         File file = new File(aPath);
         if(file.exists()){
             return aPath;
@@ -68,7 +67,7 @@ public class ReportApi {
      * @param aPath - полный путь к файлу на сервере
      * @throws IOException
      */
-    static void removeFile(String aPath) throws IOException{
+    public static void removeFile(String aPath) throws IOException{
         File file = new File(aPath);
          if(!file.delete()){
           throw new  IOException("File not deleting");
@@ -81,7 +80,7 @@ public class ReportApi {
      * @param aNewPath - полный путь к файлу с новым названием на сервере
      * @throws IOException
      */
-    static void renameFile(String aPath,String aNewPath) throws IOException{
+    public static void renameFile(String aPath,String aNewPath) throws IOException{
         File file = new File(aPath);
         if(file.exists()){
             File newFile = new File(aNewPath);
@@ -117,7 +116,7 @@ public class ReportApi {
      * @throws SQLException
      * @throws IOException
      */
-    static BLOB getFile(String aPath, oracle.sql.BLOB aBlob) throws SQLException, IOException{
+    public static oracle.sql.BLOB getFile(String aPath, oracle.sql.BLOB aBlob) throws SQLException, IOException{
         byte[] bytes = null;
         bytes = fileToBytes(aPath);
         bytesToBlob(bytes, aBlob);
@@ -162,7 +161,7 @@ public class ReportApi {
      * @throws SQLException
      * @throws IOException
      */
-    static void putFile(String aPath, BLOB aBlob) throws FileNotFoundException, SQLException, IOException{
+    public static void putFile(String aPath, oracle.sql.BLOB aBlob) throws FileNotFoundException, SQLException, IOException{
         File file = new File(aPath);
         BufferedInputStream in = null;
         BufferedOutputStream out = null;   
@@ -183,7 +182,7 @@ public class ReportApi {
      * @return - список путей к файлам 
      * @throws SQLException
      */
-    BLOB getDirList(String dir, oracle.sql.BLOB aBlob) throws IOException, SQLException{            
+    public static oracle.sql.BLOB getDirList(String dir, oracle.sql.BLOB aBlob) throws IOException, SQLException{            
             if (dir == null) throw new IOException("DIRECTORY_PATH not found");
             ArrayList<String> list = getDir(new File(dir)); 
             ObjectOutputStream out = null;
