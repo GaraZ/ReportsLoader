@@ -1,31 +1,34 @@
 CREATE OR REPLACE PACKAGE pac_load_reports
   AUTHID CURRENT_USER AS
-  
-  -- получить список файлов (сериализованный) на сервере
+
+/*
+       CREATE OR REPLACE TYPE TVARCHAR_ARRAY AS TABLE OF VARCHAR2(4000)
+*/
+  -- РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє С„Р°Р№Р»РѕРІ (СЃРµСЂРёР°Р»РёР·РѕРІР°РЅРЅС‹Р№) РЅР° СЃРµСЂРІРµСЂРµ
   function getDirList(aRootDir in varchar2, aBlob in blob) return BLOB as
     LANGUAGE JAVA NAME 'ReportApi.getDirList(java.lang.String, oracle.sql.BLOB) return oracle.sql.Blob';
 
-  -- получить путь к директории с файлами
+  -- РїРѕР»СѓС‡РёС‚СЊ РїСѓС‚СЊ Рє РґРёСЂРµРєС‚РѕСЂРёРё СЃ С„Р°Р№Р»Р°РјРё
   function getRootDir return varchar2;
 
-  -- получить файл с сервера по указанному пути. aPath - поный путь к файлу
+  -- РїРѕР»СѓС‡РёС‚СЊ С„Р°Р№Р» СЃ СЃРµСЂРІРµСЂР° РїРѕ СѓРєР°Р·Р°РЅРЅРѕРјСѓ РїСѓС‚Рё. aPath - РїРѕРЅС‹Р№ РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ
   function getFile(aPath in varchar2, aBlob in BLOB) return BLOB as
     LANGUAGE JAVA NAME 'ReportApi.getFile(java.lang.String, oracle.sql.BLOB) return oracle.sql.Blob';
 
-  -- звгрузить файл на сервер по указанному пути. aFileName - полный путь к файлу
+  -- Р·РІРіСЂСѓР·РёС‚СЊ С„Р°Р№Р» РЅР° СЃРµСЂРІРµСЂ РїРѕ СѓРєР°Р·Р°РЅРЅРѕРјСѓ РїСѓС‚Рё. aFileName - РїРѕР»РЅС‹Р№ РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ
   procedure putFile(aFileName in varchar2, aBlob in blob) is language java
     name 'ReportApi.putFile(java.lang.String, oracle.sql.BLOB)';
 
-  -- проверить наличие файла на сервере. aFileName - полный путь к файлу
-  -- если файл существует возвращает путь к файлу, иначе null 
+  -- РїСЂРѕРІРµСЂРёС‚СЊ РЅР°Р»РёС‡РёРµ С„Р°Р№Р»Р° РЅР° СЃРµСЂРІРµСЂРµ. aFileName - РїРѕР»РЅС‹Р№ РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ
+  -- РµСЃР»Рё С„Р°Р№Р» СЃСѓС‰РµСЃС‚РІСѓРµС‚ РІРѕР·РІСЂР°С‰Р°РµС‚ РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ, РёРЅР°С‡Рµ null 
   function checkFile(aFileName in varchar2) return varchar2 as language java
     name 'ReportApi.checkFile(java.lang.String) return java.lang.String';
 
-  -- удалить файл на сервере. aFileName - полный путь к файлу
+  -- СѓРґР°Р»РёС‚СЊ С„Р°Р№Р» РЅР° СЃРµСЂРІРµСЂРµ. aFileName - РїРѕР»РЅС‹Р№ РїСѓС‚СЊ Рє С„Р°Р№Р»Сѓ
   procedure removeFile(aFileName in varchar2) is language java
     name 'ReportApi.removeFile(java.lang.String)';
 
-  -- переименовать файл на сервере. aFileName - полный путь к старому файла. aFileName - полный путь к новому файлу.
+  -- РїРµСЂРµРёРјРµРЅРѕРІР°С‚СЊ С„Р°Р№Р» РЅР° СЃРµСЂРІРµСЂРµ. aFileName - РїРѕР»РЅС‹Р№ РїСѓС‚СЊ Рє СЃС‚Р°СЂРѕРјСѓ С„Р°Р№Р»Р°. aFileName - РїРѕР»РЅС‹Р№ РїСѓС‚СЊ Рє РЅРѕРІРѕРјСѓ С„Р°Р№Р»Сѓ.
   procedure renameFile(aFileName in varchar2,aNewFileName in varchar2) is language java
     name 'ReportApi.renameFile(java.lang.String, java.lang.String)';
 
