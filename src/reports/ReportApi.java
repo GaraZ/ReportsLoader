@@ -33,7 +33,7 @@ public class ReportApi {
         if(aDir.isDirectory()){
             String[] s = aDir.list();
             for (String dirName : s){
-                File locFile = new File(aDir+System.getProperty("file.separator")+dirName);
+                File locFile = new File(aDir,dirName);
                 if(locFile.getName().endsWith("fr3")){
                     list.add(locFile.getAbsolutePath());
                 }
@@ -42,7 +42,7 @@ public class ReportApi {
         return list;
     }
     
-    private static synchronized <T extends OutputStream > void bufferedCopy(BufferedInputStream  in, T out) throws IOException {
+    private static <T extends OutputStream > void bufferedCopy(BufferedInputStream  in, T out) throws IOException {
         int byte_;
         while ((byte_ = in.read()) != -1){
             out.write(byte_);

@@ -42,8 +42,9 @@ public class Config {
             return keySpec;
         }
 
-        private static byte[] crypter(byte[] aBytes, int aMode, Key aKey) throws NoSuchAlgorithmException, 
-                NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+        private static byte[] crypter(byte[] aBytes, int aMode, Key aKey) throws 
+                NoSuchAlgorithmException, NoSuchPaddingException, 
+                InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(aMode, aKey);
             byte[] bytes = cipher.doFinal(aBytes);
@@ -62,7 +63,7 @@ public class Config {
         */
         static String encrypt(String aString) throws UnsupportedEncodingException, 
                 NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, 
-                IllegalBlockSizeException, BadPaddingException{
+                IllegalBlockSizeException, BadPaddingException {
             if(aString == null || aString.trim().isEmpty()) 
                 return new String();
             byte[] bytes = aString.getBytes(ENCODING);
@@ -82,7 +83,7 @@ public class Config {
         */
         static String dencrypt(String aString) throws NoSuchAlgorithmException, 
                 NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, 
-                BadPaddingException, UnsupportedEncodingException{
+                BadPaddingException, UnsupportedEncodingException {
             if(aString == null || aString.trim().isEmpty()) 
                 return new String();
             byte[] bytes = Base64.decode(aString);
@@ -91,7 +92,7 @@ public class Config {
         }
     }
     
-    private DocumentBuilder getDocBuilder() throws ParserConfigurationException{
+    private DocumentBuilder getDocBuilder() throws ParserConfigurationException {
         DocumentBuilderFactory docFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder docBuilder = docFactory.newDocumentBuilder();
         return docBuilder;
@@ -117,9 +118,11 @@ public class Config {
      * @throws IllegalBlockSizeException
      * @throws BadPaddingException
      */
-    void setProfiles(Map<String,Map<String,String>> aMap) throws ParserConfigurationException,
-            TransformerException, UnsupportedEncodingException, NoSuchAlgorithmException, 
-            NoSuchPaddingException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+    void setProfiles(Map<String,Map<String,String>> aMap) throws 
+            ParserConfigurationException, TransformerException, 
+            UnsupportedEncodingException, NoSuchAlgorithmException, 
+            NoSuchPaddingException, InvalidKeyException, 
+            IllegalBlockSizeException, BadPaddingException {
         Document doc = getDocBuilder().newDocument();
         Element rootElement = doc.createElement("root");
         doc.appendChild(rootElement);
@@ -153,7 +156,7 @@ public class Config {
      */
     Map<String,Map<String,String>> getProfiles() throws ParserConfigurationException, 
             SAXException, NoSuchAlgorithmException, NoSuchPaddingException, IOException, 
-            InvalidKeyException, IllegalBlockSizeException, BadPaddingException{
+            InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
         Map<String,Map<String,String>> map = new TreeMap<String,Map<String,String>>();
         Document doc;
         doc = null;
@@ -165,16 +168,16 @@ public class Config {
         NodeList nodeList =  doc.getFirstChild().getChildNodes();
         int size = nodeList.getLength();
         for(int i = 0; i < size; i++){
-            if(nodeList.item(i) instanceof Element){
+            if(nodeList.item(i) instanceof Element) {
                 NodeList lNodeList = nodeList.item(i).getChildNodes();
                 int lSize = lNodeList.getLength();
                 Map<String,String> lMap = new HashMap<String,String>();
-                for(int j = 0; j < lSize; j++){
-                    if(lNodeList.item(j) instanceof Element){
+                for(int j = 0; j < lSize; j++) {
+                    if (lNodeList.item(j) instanceof Element){
                         if(lNodeList.item(j).getNodeName().equals("pass")){
                             lMap.put(lNodeList.item(j).getNodeName(),
                                 Crypt.dencrypt(lNodeList.item(j).getAttributes().getNamedItem("value").getNodeValue())); 
-                        }else{
+                        } else {
                             lMap.put(lNodeList.item(j).getNodeName(),
                                 lNodeList.item(j).getAttributes().getNamedItem("value").getNodeValue()); 
                         }

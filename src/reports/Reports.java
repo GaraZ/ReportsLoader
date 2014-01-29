@@ -126,7 +126,7 @@ public class Reports {
         return gRootDir;
     }
     
-    private synchronized void bufferedCopy(BufferedInputStream in, BufferedOutputStream out) throws IOException {
+    private void bufferedCopy(BufferedInputStream in, BufferedOutputStream out) throws IOException {
         int byte_;
         while ((byte_ = in.read()) != -1){
             out.write(byte_);
@@ -155,7 +155,7 @@ public class Reports {
      * @return true - файл существует; false - файл не существует
      * @throws SQLException
      */
-    boolean checkFileRemote(String aPath) throws SQLException{
+    boolean checkFileRemote(String aPath) throws SQLException {
         String status = null;
         String QUERY = "select pac_load_reports.checkFile(?) from dual";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
@@ -165,7 +165,7 @@ public class Reports {
                 status = rset.getString(1);
             }
         }
-        if(status ==null){
+        if (status ==null){
             return false;
         } else{
             return true;
@@ -177,7 +177,7 @@ public class Reports {
      * @param aPath Полный путь к файлу на сервере
      * @throws SQLException
      */
-    void removeFileRemote(String aPath) throws SQLException{
+    void removeFileRemote(String aPath) throws SQLException {
         String QUERY = "begin pac_load_reports.removeFile(?); end;";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aPath);
@@ -191,7 +191,7 @@ public class Reports {
      * @param aNewName Новый путь к файлу
      * @throws SQLException
      */
-    void renameFileRemote(String aName, String aNewName) throws SQLException{
+    void renameFileRemote(String aName, String aNewName) throws SQLException {
         String QUERY = "begin pac_load_reports.renameFile(?,?); end;";
         try(PreparedStatement pstmt = gCon.prepareStatement(QUERY)) {
             pstmt.setString(1, aName);
@@ -204,7 +204,7 @@ public class Reports {
      * @return Список файлов на сервере
      * @throws SQLException
      */
-    List<String> getFileListRemote() throws SQLException, IOException, ClassNotFoundException{
+    List<String> getFileListRemote() throws SQLException, IOException, ClassNotFoundException {
         List<String> list = new ArrayList<String>();
         String QUERY = "select pac_load_reports.getDirList(?,?) from dual";
         Blob blob = null;
@@ -212,13 +212,12 @@ public class Reports {
             pstmt.setString(1, gRootDir);
             pstmt.setBlob(2, gCon.createBlob());
             ResultSet rset = pstmt.executeQuery();
-            while (rset.next()){
+            if (rset.next()){
                 blob = rset.getBlob(1);
-                break;
             }
         }
-        if (blob != null){
-            try(ObjectInputStream bos = new ObjectInputStream(blob.getBinaryStream())){
+        if (blob != null) {
+            try(ObjectInputStream bos = new ObjectInputStream(blob.getBinaryStream())) {
                 list = (ArrayList<String>) bos.readObject();
                 Collections.sort(list);
             }
@@ -235,7 +234,7 @@ public class Reports {
             pstmt.setString(1, aFileName);
             pstmt.setBlob(2, blob);
             ResultSet rset = pstmt.executeQuery();
-            while (rset.next()){
+            if (rset.next()) {
                 blob = rset.getBlob(1);
                 return blob;
             }
